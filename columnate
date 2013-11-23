@@ -6,86 +6,111 @@
 #
 # run with e.g. ls|sort|columnate rowmajor=1 COLUMNS=$COLUMNS
 
-    { item[NR-1]=$0 }
+    {
+	    item[NR-1]=$0
+	    l=length($0)
+	    if (!minlen || l<minlen)
+		    minlen=l
+	    if (maxlen<l)
+		    maxlen=l
+    }
 
 END {
-        maxcols = int((COLUMNS+2)/3)
-        if (maxcols>NR) maxcols=NR
+	sep="  "
+	if (COLUMNS<=0) COLUMNS=80
 
-        for ( cols = 1 ; cols <= maxcols ; ++cols )
-                nlines[cols] = int((NR+cols-1)/cols)
+	maxcols = int(((COLUMNS-(maxlen-minlen)-length(sep))+minlen-1)/minlen)
+	if (maxcols<1) maxcols=1
+	if (maxcols>NR) maxcols=NR
 
-        for ( i=0 ; i<NR ; ++i ) {
-                ilen = length(item[i])
-                for ( cols=1 ; cols <= maxcols ; ++cols ) {
-                        if (rowmajor) {
-                                icol  = int(i%cols)
-                                iline = int(i/cols)
-                        } else {
-                                lines=nlines[cols]
-                                if ( i < filled ) {
-                                        icol   = int(i/lines)
-                                        iline  = int(i%lines)
-                                } else {
-					fullcols = int(NR/lines)
-					filled   = fullcols*lines
-                                        over     = i-filled
-                                        short    = lines-1
-                                        icol   = fullcols+int(over/short)
-                                        iline  = int(over%short)
-                                }
-                        }
-                        if ( ilen > colwidths[cols,icol] )
-                                colwidths[cols,icol] = ilen;
-                }
-        }
+	for ( cols = 1 ; cols <= maxcols ; ++cols ) {
+		nlines[cols] = int((NR+cols-1)/cols)
+		# +1 to match ls's output, for the \n I guess
+		linewidth[cols] = length(sep)*(cols-1)+1
+	}
 
-        cols = 1
-        lines= -1
-        for ( nc = 1 ; nc <= maxcols ; ++nc ) {
-                if (lines!=nlines[nc]) {
-                        bestwidth=COLUMNS+1
-                        lines=nlines[nc];
-                }
-                width=2*nc-1
-                for (c = 0; c < nc; ++c)
-                        width+=colwidths[nc,c]
-                if ( width < bestwidth ) {
-                        cols = nc
-                        bestwidth = width
-                }
-        }
+	if (rowmajor) for ( i=0 ; i<NR ; ++i ) {
+		ilen = length(item[i])
+		for ( cols=1 ; cols <= maxcols ; ++cols ) {
+			icol  = int(i%cols)
+			iline = int(i/cols)
+			if ( ilen > colwidths[cols,icol] ) {
+				linewidth[cols] += ilen - colwidths[cols,icol]
+				colwidths[cols,icol] = ilen;
+			}
+		}
+		while ( linewidth[maxcols] > COLUMNS )
+			--maxcols
+	} else for ( i=0 ; i<NR ; ++i ) {
+		ilen = length(item[i])
+		for ( cols=1 ; cols <= maxcols ; ++cols ) {
+			lines=nlines[cols]
+			fullcols = int(NR/lines)
+			filled	 = fullcols*lines
+			if ( i < filled ) {
+				icol   = int(i/lines)
+				iline  = int(i%lines)
+			} else {
+				over	 = i-filled
+				short	 = lines-1
+				icol   = fullcols+int(over/short)
+				iline  = int(over%short)
+			}
+			if ( ilen > colwidths[cols,icol] ) {
+				linewidth[cols] += ilen - colwidths[cols,icol]
+				colwidths[cols,icol] = ilen;
+			}
+		}
+		while ( linewidth[maxcols] > COLUMNS )
+			--maxcols
+	}
 
-        lines=nlines[cols]
-        fullcols=int(NR/lines)
-        filled=fullcols*lines
+	if ( !maxcols ) cols = 1
+	else {
+		cols=maxcols
+		lines=nlines[maxcols]
+		bestwidth=linewidth[maxcols]
+		for (nc = maxcols-1 ; nlines[nc] == lines ; --nc)
+			if ( linewidth[nc] < bestwidth ) {
+				cols = nc
+				bestwidth = linewidth[nc]
+			}
+	}
 
-        for ( line = 0 ; line < lines ; ++line ) {
-                for ( col = 0 ; col < cols ; ++col ) {
-                        innerfmt="%-"colwidths[cols,col]"s%s"
+	lines=nlines[cols]
+	fullcols=int(NR/lines)
+	filled=fullcols*lines
 
-                        if (rowmajor)
-                                i = line*cols+col
-                        else if (col < fullcols)
-                                i=col*lines+line
-                        else
-                                i=filled+(col-fullcols)*(lines-1)+line
+	for ( line = 0 ; line < lines ; ++line ) {
+		for ( col = 0 ; col < cols ; ++col ) {
+			innerfmt="%-"colwidths[cols,col]"s%s"
 
-                        if ( i >= NR )
-                                break
+			if (rowmajor)
+				i = line*cols+col
+			else if (col < fullcols)
+				i=col*lines+line
+			else
+				i=filled+(col-fullcols)*(lines-1)+line
 
-                        if (rowmajor)
-                                if (col+1<cols && i+1<NR)
-                                        printf innerfmt, item[i], "  "
-                                else
-                                        printf "%s",item[i]
-                        else
-                        if (  line+1==lines && col<=fullcols \
-                           || line+1 <lines && col+1<cols)
-                                printf innerfmt, item[i], "  "
-                        else
-                                printf "%s",item[i]
-                }
-                print "";
-        }
+			if ( i >= NR )
+				break
+
+			if ( i+1==NR )	fmt="%s"
+			else
+			if (rowmajor)
+				if (col+1<cols)
+					fmt= innerfmt
+				else
+					fmt="%s"
+			else
+			if (  line+1==lines && col<=fullcols \
+			   || line+1 <lines && col+1<cols)
+				fmt=innerfmt
+			else
+				fmt="%s"
+
+			printf fmt,item[i],sep
+		}
+		print "";
+	}
 }
