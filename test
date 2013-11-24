@@ -1,15 +1,14 @@
 #!/bin/sh
-rowmajor=0 COLUMNS=${COLUMNS:-`tput cols`}
-while getopts v\?w:Cx opt ; do case $opt in
-	v) set -xv ;; \?) sed /^$/q $0 ; exit 1 ;;
-	w) COLUMNS=$((OPTARG+0)) ;;
-	C) rowmajor=0 ;; x) rowmajor=1 ;;
-
-esac; done; shift $((OPTIND-1)); test -- = "$1" && shift 1
-
 spit() {
-	for i ; do echo $i; done
+	for i ; do echo "$i"; done
 }
 
-spit 1 2222222222222222 3 4 5 6 7777777777777777 \
-| awk -f columnate rowmajor=$rowmajor COLUMNS=$COLUMNS
+for n in {20..80..9}; do
+	spit 1 2222222222222222 3 4 5 6 7777777777777777 \
+	| ./columnate -xw$n
+	echo
+	spit 1 2222222222222222 3 4 5 6 7777777777777777 \
+	| ./columnate -Cw$n
+	echo
+done
+	

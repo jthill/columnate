@@ -1,3 +1,16 @@
+#!/bin/sh
+# This is free and unencumbered software released into the public domain
+# See file LICENSE or refer to <http://unlicense.org/>
+rowmajor=0 COLUMNS=${COLUMNS:-`tput cols`}
+while getopts v\?w:Cx opt ; do case $opt in
+	v) set -xv ;; \?) sed /^$/q $0 ; exit 1 ;;
+	w) COLUMNS=$((OPTARG+0)) ;;
+	C) rowmajor=0 ;; x) rowmajor=1 ;;
+	D) debug=1 ;;
+
+esac; done; shift $((OPTIND-1)); test -- = "$1" && shift 1
+
+awk 4<<\EOF -f/dev/fd/4 rowmajor=$rowmajor COLUMNS=$COLUMNS debug=$debug "$@"
 #!/bin/awk -f
 # This is free and unencumbered software released into the public domain
 # See file LICENSE or refer to <http://unlicense.org/>
@@ -16,10 +29,11 @@
     }
 
 END {
+        if (NR==0) exit
 	sep="  "
 	if (COLUMNS<=0) COLUMNS=80
 
-	maxcols = int(((COLUMNS-(maxlen-minlen)-length(sep))+minlen-1)/minlen)
+	maxcols = int(((COLUMNS-(maxlen-minlen))+minlen-1)/minlen)
 	if (maxcols<1) maxcols=1
 	if (maxcols>NR) maxcols=NR
 
@@ -45,13 +59,13 @@ END {
 		ilen = length(item[i])
 		for ( cols=1 ; cols <= maxcols ; ++cols ) {
 			lines=nlines[cols]
-			fullcols = int(NR/lines)
+			fullcols = cols-(cols*lines-NR)
 			filled	 = fullcols*lines
 			if ( i < filled ) {
 				icol   = int(i/lines)
 				iline  = int(i%lines)
 			} else {
-				over	 = i-filled
+				over	 = i-filled+1
 				short	 = lines-1
 				icol   = fullcols+int(over/short)
 				iline  = int(over%short)
@@ -78,7 +92,7 @@ END {
 	}
 
 	lines=nlines[cols]
-	fullcols=int(NR/lines)
+	fullcols=cols-(cols*lines-NR)
 	filled=fullcols*lines
 
 	for ( line = 0 ; line < lines ; ++line ) {
@@ -89,6 +103,8 @@ END {
 				i = line*cols+col
 			else if (col < fullcols)
 				i=col*lines+line
+			else if (line+1==lines)
+				continue
 			else
 				i=filled+(col-fullcols)*(lines-1)+line
 
@@ -114,3 +130,4 @@ END {
 		print "";
 	}
 }
+EOF
