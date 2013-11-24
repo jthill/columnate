@@ -2,7 +2,7 @@
 # This is free and unencumbered software released into the public domain
 # See file LICENSE or refer to <http://unlicense.org/>
 rowmajor=0 COLUMNS=${COLUMNS:-`tput cols`}
-while getopts v\?w:Cx opt ; do case $opt in
+while getopts vD\?w:Cx opt ; do case $opt in
 	v) set -xv ;; \?) sed /^$/q $0 ; exit 1 ;;
 	w) COLUMNS=$((OPTARG+0)) ;;
 	C) rowmajor=0 ;; x) rowmajor=1 ;;
@@ -10,7 +10,9 @@ while getopts v\?w:Cx opt ; do case $opt in
 
 esac; done; shift $((OPTIND-1)); test -- = "$1" && shift 1
 
-awk 4<<\EOF -f/dev/fd/4 rowmajor=$rowmajor COLUMNS=$COLUMNS debug=$debug "$@"
+f=`mktemp -t`
+trap "rm '$f'" 0 1 2 3 15
+cat >"$f" <<\EOF
 #!/bin/awk -f
 # This is free and unencumbered software released into the public domain
 # See file LICENSE or refer to <http://unlicense.org/>
@@ -31,9 +33,10 @@ awk 4<<\EOF -f/dev/fd/4 rowmajor=$rowmajor COLUMNS=$COLUMNS debug=$debug "$@"
 END {
         if (NR==0) exit
 	sep="  "
-	if (COLUMNS<=0) COLUMNS=80
-
-	maxcols = int(((COLUMNS-(maxlen-minlen))+minlen-1)/minlen)
+	if (COLUMNS<=0)
+		COLUMNS=80
+	maxcols=int(((COLUMNS+length(sep)-(maxlen-minlen)+minlen+length(sep)-1))/(minlen+length(sep)))
+#	maxcols = int(((COLUMNS-(maxlen-minlen))+minlen-1)/minlen)
 	if (maxcols<1) maxcols=1
 	if (maxcols>NR) maxcols=NR
 
@@ -46,7 +49,7 @@ END {
 	if (rowmajor) for ( i=0 ; i<NR ; ++i ) {
 		ilen = length(item[i])
 		for ( cols=1 ; cols <= maxcols ; ++cols ) {
-			icol  = int(i%cols)
+			icol  = i%cols
 			iline = int(i/cols)
 			if ( ilen > colwidths[cols,icol] ) {
 				linewidth[cols] += ilen - colwidths[cols,icol]
@@ -63,17 +66,18 @@ END {
 			filled	 = fullcols*lines
 			if ( i < filled ) {
 				icol   = int(i/lines)
-				iline  = int(i%lines)
+				iline  = i%lines
 			} else {
-				over	 = i-filled+1
+				over	 = i-filled
 				short	 = lines-1
 				icol   = fullcols+int(over/short)
-				iline  = int(over%short)
+				iline  = over%short
 			}
 			if ( ilen > colwidths[cols,icol] ) {
 				linewidth[cols] += ilen - colwidths[cols,icol]
-				colwidths[cols,icol] = ilen;
+				colwidths[cols,icol] = ilen
 			}
+			if (debug) print i+1,icol+1"/"cols,ilen"/"colwidths[cols,icol]
 		}
 		while ( linewidth[maxcols] > COLUMNS )
 			--maxcols
@@ -111,19 +115,9 @@ END {
 			if ( i >= NR )
 				break
 
-			if ( i+1==NR )	fmt="%s"
-			else
-			if (rowmajor)
-				if (col+1<cols)
-					fmt= innerfmt
-				else
-					fmt="%s"
-			else
-			if (  line+1==lines && col<=fullcols \
-			   || line+1 <lines && col+1<cols)
-				fmt=innerfmt
-			else
-				fmt="%s"
+			if (debug) printf "%d:%d/%d[%s]:",i+1,col+1,cols,innerfmt
+
+			fmt= i+1==NR? "%s": col+1<cols? innerfmt: "%s"
 
 			printf fmt,item[i],sep
 		}
@@ -131,3 +125,4 @@ END {
 	}
 }
 EOF
+awk -f "$f" -v rowmajor=$rowmajor -v COLUMNS=$COLUMNS -v debug=$debug "$@"

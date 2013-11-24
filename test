@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 spit() {
 	for i ; do echo "$i"; done
 }
