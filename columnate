@@ -31,12 +31,14 @@ cat >"$f" <<\EOF
     }
 
 END {
-        if (NR==0) exit
+	if (NR==0)
+		exit
 	sep="  "
 	if (COLUMNS<=0)
 		COLUMNS=80
-	maxcols=int(((COLUMNS+length(sep)-(maxlen-minlen)+minlen+length(sep)-1))/(minlen+length(sep)))
-#	maxcols = int(((COLUMNS-(maxlen-minlen))+minlen-1)/minlen)
+
+	mincols=int((COLUMNS+length(sep)+maxlen+length(sep)-1)/(maxlen+length(sep)))
+	maxcols=int(((COLUMNS-(maxlen-minlen)+length(sep)+minlen+length(sep)-1))/(minlen+length(sep)))
 	if (maxcols<1) maxcols=1
 	if (maxcols>NR) maxcols=NR
 
@@ -48,7 +50,7 @@ END {
 
 	if (rowmajor) for ( i=0 ; i<NR ; ++i ) {
 		ilen = length(item[i])
-		for ( cols=1 ; cols <= maxcols ; ++cols ) {
+		for ( cols=mincols ; cols <= maxcols ; ++cols ) {
 			icol  = i%cols
 			iline = int(i/cols)
 			if ( ilen > colwidths[cols,icol] ) {
@@ -58,9 +60,9 @@ END {
 		}
 		while ( linewidth[maxcols] > COLUMNS )
 			--maxcols
-	} else for ( i=0 ; i<NR ; ++i ) {
+	} else for ( i=NR ; i-- ;) {
 		ilen = length(item[i])
-		for ( cols=1 ; cols <= maxcols ; ++cols ) {
+		for ( cols=mincols ; cols <= maxcols ; ++cols ) {
 			lines=nlines[cols]
 			fullcols = cols-(cols*lines-NR)
 			filled	 = fullcols*lines
