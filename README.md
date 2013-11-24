@@ -31,9 +31,9 @@ and it's easy to see that if say items 2 and 7 are much longer than items 3, 4,
 In any width that forces 2 rows, columnate will always choose the above
 row-major layout for this data.
 
-This tests about 10x-20x slower than `/bin/ls` and the algorithm's linear, the
-ratio holds up as the directory size rises (`/usr/bin`'s 4391 entries to
-`/usr/share/man/man3`'s 15677) so it's doing something right. 
+For ordinary terminal widths this clocks in about 3x slower than /bin/ls, not
+bad for an awk.  Widths much larger than that start getting slow, I don't know
+whether that's awk blowing the cache or the algorithm itself.
 
 **This is free and unencumbered software released into the public domain**  
 **See file LICENSE or refer to <http://unlicense.org/>**  
