@@ -3,10 +3,12 @@
 # See file LICENSE or refer to <http://unlicense.org/>
 rowmajor=0 COLUMNS=${COLUMNS:-`tput cols`}
 while getopts vD\?w:Cx opt ; do case $opt in
-	v) set -xv ;; \?) sed /^$/q $0 ; exit 1 ;;
-	w) COLUMNS=$((OPTARG+0)) ;;
-	C) rowmajor=0 ;; x) rowmajor=1 ;;
-	D) debug=1 ;;
+        v) set -xv ;;                   # verbose
+        \?) sed /^$/q $0 ; exit 1 ;;    # what is this for?
+        w) COLUMNS=$((OPTARG+0)) ;;     # set number of characters for width of output
+        C) rowmajor=0 ;;                # what is this for?
+        x) rowmajor=1 ;;                # what is this for?
+        D) debug=1 ;;                   # show debugging information
 
 esac; done; shift $((OPTIND-1)); test -- = "$1" && shift 1
 
