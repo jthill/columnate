@@ -1,14 +1,17 @@
 #!/bin/sh
 # This is free and unencumbered software released into the public domain
 # See file LICENSE or refer to <http://unlicense.org/>
-rowmajor=0 COLUMNS=${COLUMNS:-`tput cols`}
+rowmajor=0 cols=${COLUMNS:-`tput cols`}
 while getopts vD\?w:Cx opt ; do case $opt in
-	v) set -xv ;; \?) sed /^$/q $0 ; exit 1 ;;
-	w) COLUMNS=$((OPTARG+0)) ;;
-	C) rowmajor=0 ;; x) rowmajor=1 ;;
-	D) debug=1 ;;
+        v) set -x ;;                    # -v verbose
+        \?) sed /^$/q $0 ; exit 1 ;;    # -? print this header block
+        w) cols=$((OPTARG+0)) ;;     # -wN set number of characters for width of output
+	C) rowmajor=0 ;;                # -C list entries in columns (default)
+        x) rowmajor=1 ;;                # -x list entries in rows
+        D) debug=1 ;;                   # -D show debugging information
 
 esac; done; shift $((OPTIND-1)); test -- = "$1" && shift 1
+: cols=$COLUMNS
 
 f=`mktemp -t`
 trap "rm '$f'" 0 1 2 3 15
@@ -127,4 +130,4 @@ END {
 	}
 }
 EOF
-awk -f "$f" -v rowmajor=$rowmajor -v COLUMNS=$COLUMNS -v debug=$debug "$@"
+awk -f "$f" -v rowmajor=$rowmajor -v COLUMNS=$cols -v debug=$debug "$@"
